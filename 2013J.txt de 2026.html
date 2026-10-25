@@ -1,0 +1,2856 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RS.1 performence </title>
+  
+      <style>
+        :root {
+          --bg: #101a2d;
+          --panel: rgba(17, 28, 48, 0.8);
+          --panel-border: rgba(149, 177, 218, 0.24);
+          --text: #e8f0ff;
+          --muted: #b8c8e0;
+          --accent: #7cbfff;
+          --accent-rgb: 124, 191, 255;
+          --accent-2: #5c8df6;
+          --accent-2-rgb: 92, 141, 246;
+        }
+
+        body.light-theme {
+          --bg: #eaf2ff;
+          --panel: rgba(255, 255, 255, 0.78);
+          --panel-border: rgba(30, 95, 175, 0.18);
+          --text: #172a45;
+          --muted: #4b6488;
+          --accent: #1764b0;
+          --accent-rgb: 23, 100, 176;
+          --accent-2: #3a8ded;
+          --accent-2-rgb: 58, 141, 237;
+          background:
+            radial-gradient(circle at top, rgba(124, 195, 255, 0.32), transparent 30%),
+            radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.16), transparent 35%),
+            var(--bg);
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        ::selection {
+          color: #08111f;
+          background: var(--accent);
+        }
+
+        body {
+          margin: 0;
+          min-height: 100vh;
+          padding: 28px 18px 48px;
+          position: relative;
+          overflow-x: hidden;
+          font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+          color: var(--text);
+          background:
+            radial-gradient(circle at top, rgba(124, 195, 255, 0.18), transparent 30%),
+            radial-gradient(circle at bottom right, rgba(111, 58, 235, 0.2), transparent 35%),
+            var(--bg);
+          background-size: 160% 160%;
+          animation: backgroundDrift 16s ease-in-out infinite alternate;
+        }
+
+        #particle-canvas {
+          position: fixed;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          opacity: 0.72;
+          z-index: -1;
+        }
+
+        .cursor-glow {
+          position: fixed;
+          width: 240px;
+          height: 240px;
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 40;
+          opacity: 0;
+          transform: translate(-50%, -50%);
+          background: radial-gradient(circle, rgba(124, 195, 255, 0.13), transparent 68%);
+          transition: opacity 0.25s ease;
+        }
+
+        body.cursor-active .cursor-glow {
+          opacity: 1;
+        }
+
+        .click-ripple {
+          position: fixed;
+          width: 18px;
+          height: 18px;
+          border: 2px solid rgba(124, 195, 255, 0.75);
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 60;
+          transform: translate(-50%, -50%);
+          animation: clickRipple 0.8s ease-out forwards;
+        }
+
+        @keyframes clickRipple {
+          from {
+            opacity: 0.9;
+            width: 18px;
+            height: 18px;
+            box-shadow: 0 0 0 rgba(124, 195, 255, 0.5);
+          }
+
+          to {
+            opacity: 0;
+            width: 150px;
+            height: 150px;
+            box-shadow: 0 0 30px rgba(124, 195, 255, 0.35);
+          }
+        }
+
+        body::before,
+        body::after {
+          content: '';
+          position: fixed;
+          width: 42vw;
+          height: 42vw;
+          max-width: 520px;
+          max-height: 520px;
+          border: 1px solid rgba(124, 195, 255, 0.16);
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: -1;
+        }
+
+        body::before {
+          top: -18vw;
+          left: -12vw;
+          box-shadow: 0 0 70px rgba(124, 195, 255, 0.18), 0 0 0 28px rgba(124, 195, 255, 0.04), 0 0 0 58px rgba(124, 195, 255, 0.03);
+          animation: orbitLeft 13s linear infinite;
+        }
+
+        body::after {
+          right: -16vw;
+          bottom: -18vw;
+          box-shadow: 0 0 80px rgba(139, 92, 246, 0.2), 0 0 0 34px rgba(139, 92, 246, 0.04), 0 0 0 70px rgba(139, 92, 246, 0.03);
+          animation: orbitRight 17s linear infinite reverse;
+        }
+
+        .card {
+          width: min(100%, 1080px);
+          margin: 0 auto;
+          padding: 24px;
+          border-radius: 22px;
+          background: var(--panel);
+          border: 1px solid var(--panel-border);
+          backdrop-filter: blur(12px);
+          box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(124, 195, 255, 0.06) inset;
+          opacity: 0;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .card::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 1px;
+          background: linear-gradient(120deg, transparent 20%, rgba(124, 195, 255, 0.55), transparent 45%, rgba(192, 132, 252, 0.5), transparent 70%);
+          background-size: 250% 250%;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+          animation: borderFlow 7s linear infinite;
+        }
+
+        .intro-screen {
+          position: fixed;
+          inset: 0;
+          display: grid;
+          place-items: center;
+          background:
+            radial-gradient(circle at top, rgba(124, 195, 255, 0.16), transparent 30%),
+            radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.22), transparent 35%),
+            #0f1d34;
+          z-index: 50;
+          transition: opacity 0.9s ease, visibility 0.9s ease;
+        }
+
+        .intro-screen.hidden {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+        }
+
+        .logo-wrap {
+          display: grid;
+          place-items: center;
+          gap: 20px;
+          text-align: center;
+        }
+
+        .logo-burst {
+          position: relative;
+          width: 150px;
+          height: 150px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          background: radial-gradient(circle at 35% 30%, #c4e3ff, #9db5ff 30%, #112846 68%);
+          box-shadow: 0 0 50px rgba(124, 195, 255, 0.5), inset -14px -18px 30px rgba(7, 15, 29, 0.55);
+          animation: logoPulse 1.8s ease-in-out infinite alternate;
+        }
+
+        .logo-burst::before,
+        .logo-burst::after {
+          content: '';
+          position: absolute;
+          inset: -18px;
+          border-radius: 50%;
+          border: 1px solid rgba(124, 195, 255, 0.5);
+          animation: logoRing 1.8s ease-out infinite;
+        }
+
+        .logo-burst::after {
+          animation-delay: 0.7s;
+        }
+
+        .logo-core {
+          font-size: 2.2rem;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          color: #eef6ff;
+          text-shadow: 0 0 18px rgba(124, 195, 255, 0.55);
+        }
+
+        .intro-text {
+          color: #eef6ff;
+          font-size: clamp(1.1rem, 2vw, 1.7rem);
+          font-weight: 700;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          opacity: 0;
+          transform: translateY(16px);
+          animation: introText 1.2s ease 0.45s forwards;
+        }
+
+        body.loaded .card {
+          opacity: 1;
+          animation: cardEnter 0.7s ease both;
+        }
+
+        @keyframes logoPulse {
+          0% {
+            transform: scale(0.9);
+            filter: brightness(0.9);
+          }
+
+          100% {
+            transform: scale(1.08);
+            filter: brightness(1.18);
+          }
+        }
+
+        @keyframes logoRing {
+          0% {
+            opacity: 0.85;
+            transform: scale(0.75);
+          }
+
+          100% {
+            opacity: 0;
+            transform: scale(1.28);
+          }
+        }
+
+        @keyframes introText {
+          from {
+            opacity: 0;
+            transform: translateY(16px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes cardEnter {
+          from {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes sectionEnter {
+          from {
+            opacity: 0;
+            transform: translateX(12px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes messageEnter {
+          from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes statusPulse {
+          50% {
+            opacity: 0.45;
+          }
+        }
+
+        @keyframes backgroundDrift {
+          from {
+            background-position: 0% 0%;
+          }
+
+          to {
+            background-position: 100% 100%;
+          }
+        }
+
+        @keyframes orbitLeft {
+          to {
+            transform: rotate(360deg) translateX(32px) rotate(-360deg);
+          }
+        }
+
+        @keyframes orbitRight {
+          to {
+            transform: rotate(360deg) translateX(-28px) rotate(-360deg);
+          }
+        }
+
+        @keyframes borderFlow {
+          0% {
+            background-position: 0% 50%;
+          }
+
+          50% {
+            background-position: 100% 50%;
+          }
+
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+
+        @keyframes titleReveal {
+          from {
+            opacity: 0;
+            transform: translateY(34px) scale(0.94);
+            filter: blur(8px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        @keyframes floatPanel {
+
+          0%,
+          100% {
+            transform: translateY(0) rotate(0deg);
+          }
+
+          50% {
+            transform: translateY(-14px) rotate(1deg);
+          }
+        }
+
+        @keyframes glowPulse {
+
+          0%,
+          100% {
+            text-shadow: 0 0 0 rgba(124, 195, 255, 0);
+          }
+
+          50% {
+            text-shadow: 0 0 28px rgba(124, 195, 255, 0.45);
+          }
+        }
+
+        .topbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          padding-bottom: 28px;
+          border-bottom: 1px solid var(--panel-border);
+          animation: topbarDrop 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        .brand {
+          color: #eef6ff;
+          font-size: 1.05rem;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+        }
+
+        .brand span {
+          color: var(--accent);
+          animation: accentBlink 2s ease-in-out infinite;
+        }
+
+        @keyframes topbarDrop {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes accentBlink {
+
+          0%,
+          100% {
+            text-shadow: 0 0 0 rgba(124, 195, 255, 0);
+          }
+
+          50% {
+            text-shadow: 0 0 16px rgba(124, 195, 255, 0.9);
+          }
+        }
+
+        .page-section[hidden] {
+          display: none;
+        }
+
+        .page-section:not([hidden]) {
+          animation: sectionEnter 0.35s ease both;
+        }
+
+        .page-section:not([hidden]) .hero,
+        .page-section:not([hidden]) .voice-page,
+        .page-section:not([hidden]) .account-page {
+          animation: sectionBloom 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        @keyframes sectionBloom {
+          from {
+            opacity: 0;
+            transform: translateY(26px) scale(0.98);
+            filter: blur(5px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+
+        .nav {
+          display: flex;
+          gap: 18px;
+          color: var(--muted);
+          font-size: 0.9rem;
+          align-items: center;
+        }
+
+        .nav button {
+          border: 0;
+          padding: 0;
+          color: inherit;
+          background: transparent;
+          font: inherit;
+          cursor: pointer;
+        }
+
+        .nav button:hover {
+          color: var(--accent);
+        }
+
+        #lang-toggle,
+        #theme-toggle,
+        #music-toggle {
+          padding: 7px 10px;
+          border: 1px solid var(--panel-border);
+          border-radius: 8px;
+          color: var(--accent);
+          background: rgba(124, 195, 255, 0.08);
+          cursor: pointer;
+        }
+
+        .music-panel {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 8px;
+          border: 1px solid var(--panel-border);
+          border-radius: 12px;
+          background: rgba(124, 195, 255, 0.06);
+        }
+
+        #music-toggle.is-on {
+          background: rgba(124, 195, 255, 0.18);
+          box-shadow: 0 0 0 1px rgba(124, 195, 255, 0.2), 0 0 18px rgba(124, 195, 255, 0.14);
+        }
+
+        #music-volume {
+          width: 86px;
+          accent-color: var(--accent);
+        }
+
+        .music-mode-list {
+          display: flex;
+          gap: 6px;
+          margin-top: 6px;
+        }
+
+        .music-mode {
+          border: 1px solid var(--panel-border);
+          border-radius: 999px;
+          padding: 5px 8px;
+          background: transparent;
+          color: var(--muted);
+          font-size: 0.72rem;
+          cursor: pointer;
+        }
+
+        .music-mode.active {
+          background: rgba(124, 195, 255, 0.14);
+          border-color: rgba(124, 195, 255, 0.5);
+          color: var(--text);
+        }
+
+        .music-page {
+          padding: 54px 18px 34px;
+        }
+
+        .music-page h2 {
+          margin: 0;
+          color: #eef6ff;
+          font-size: clamp(1.7rem, 4vw, 2.8rem);
+        }
+
+        .music-page>p {
+          max-width: 58ch;
+        }
+
+        .music-choice-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          margin-top: 26px;
+        }
+
+        .music-choice {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          align-items: center;
+          gap: 12px;
+          min-height: 76px;
+          padding: 14px 16px;
+          border: 1px solid var(--panel-border);
+          border-radius: 14px;
+          color: var(--text);
+          text-align: left;
+          background: rgba(124, 195, 255, 0.06);
+          cursor: pointer;
+          transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .music-choice:hover,
+        .music-choice.active {
+          transform: translateY(-3px);
+          border-color: var(--accent);
+          background: rgba(124, 195, 255, 0.16);
+        }
+
+        .music-choice-icon {
+          font-size: 1.5rem;
+        }
+
+        .music-choice strong {
+          display: block;
+          color: #eef6ff;
+        }
+
+        .music-choice small {
+          display: block;
+          margin-top: 4px;
+          color: var(--muted);
+        }
+
+        .music-choice-state {
+          color: var(--accent);
+          font-size: 0.78rem;
+        }
+
+        .extras-page {
+          padding: 54px 18px 34px;
+        }
+
+        .extras-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
+          margin-top: 20px;
+        }
+
+        .extra-card {
+          padding: 18px;
+          border: 1px solid var(--panel-border);
+          border-radius: 16px;
+          background: rgba(124, 195, 255, 0.06);
+        }
+
+        .extra-card h3 {
+          margin: 0 0 12px;
+          color: #eef6ff;
+          font-size: 1.05rem;
+        }
+
+        .extra-card textarea,
+        .extra-card input {
+          width: 100%;
+          border: 1px solid var(--panel-border);
+          border-radius: 10px;
+          background: rgba(7, 15, 29, 0.45);
+          color: var(--text);
+          padding: 10px 12px;
+          font: inherit;
+        }
+
+        .extra-card textarea {
+          min-height: 120px;
+          resize: vertical;
+        }
+
+        .extra-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .mini-button {
+          border: 1px solid var(--panel-border);
+          border-radius: 10px;
+          padding: 8px 10px;
+          background: rgba(124, 195, 255, 0.08);
+          color: var(--text);
+          cursor: pointer;
+        }
+
+        .timer-display {
+          display: block;
+          font-size: 1.7rem;
+          font-weight: 800;
+          color: var(--accent);
+          margin: 10px 0 12px;
+        }
+
+        .quotes-box {
+          min-height: 90px;
+          display: flex;
+          align-items: center;
+          color: var(--muted);
+          line-height: 1.6;
+        }
+
+        .nav button {
+          position: relative;
+          transition: color 0.25s ease, transform 0.25s ease;
+        }
+
+        .nav button:hover {
+          transform: translateY(-3px) scale(1.05);
+        }
+
+        .nav button::after {
+          content: '';
+          position: absolute;
+          left: 50%;
+          right: 50%;
+          bottom: -9px;
+          height: 2px;
+          background: var(--accent);
+          transition: left 0.25s ease, right 0.25s ease;
+          box-shadow: 0 0 10px var(--accent);
+        }
+
+        .nav button:hover::after {
+          left: 0;
+          right: 0;
+        }
+
+        .hero {
+          display: grid;
+          grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+          gap: 40px;
+          align-items: center;
+          padding: 64px 18px 48px;
+        }
+
+        .hero h2 {
+          margin: 18px 0 0;
+          color: #eef6ff;
+          font-size: clamp(1.5rem, 3vw, 2.4rem);
+          line-height: 1.15;
+          letter-spacing: 0.01em;
+          animation: titleReveal 0.8s 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        .hero p {
+          max-width: 52ch;
+          animation: titleReveal 0.8s 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        .video-showcase {
+          padding: 0 18px 32px;
+        }
+
+        .video-showcase h2 {
+          margin: 8px 0 18px;
+          color: #eef6ff;
+          font-size: clamp(1.4rem, 2.5vw, 2rem);
+        }
+
+        .video-frame {
+          width: 100%;
+          aspect-ratio: 16 / 9;
+          overflow: hidden;
+          border: 1px solid var(--panel-border);
+          border-radius: 16px;
+          background: rgba(7, 15, 29, 0.5);
+          box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+        }
+
+        .video-frame iframe {
+          display: block;
+          width: 100%;
+          height: 100%;
+          border: 0;
+        }
+
+        .hero-panel {
+          padding: 22px;
+          border: 1px solid var(--panel-border);
+          border-radius: 16px;
+          background: rgba(7, 15, 29, 0.32);
+          animation: floatPanel 5s ease-in-out 0.6s infinite;
+          box-shadow: inset 0 0 24px rgba(124, 195, 255, 0.04), 0 0 0 rgba(124, 195, 255, 0);
+          transition: box-shadow 0.35s ease, border-color 0.35s ease;
+        }
+
+        .hero-panel:hover {
+          border-color: rgba(124, 195, 255, 0.7);
+          box-shadow: inset 0 0 30px rgba(124, 195, 255, 0.1), 0 0 30px rgba(124, 195, 255, 0.18);
+        }
+
+        .hero-panel strong {
+          display: block;
+          color: #eef6ff;
+          font-size: 1.3rem;
+        }
+
+        .hero-panel p {
+          margin-top: 10px;
+          font-size: 0.95rem;
+        }
+
+        .feature-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 14px;
+          padding: 0 18px 28px;
+        }
+
+        .feature {
+          padding: 18px;
+          border: 1px solid var(--panel-border);
+          border-radius: 14px;
+          background: rgba(124, 195, 255, 0.06);
+          transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+          animation: cardEnter 0.6s ease both;
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+        }
+
+        .feature:nth-child(2) {
+          animation-delay: 0.1s;
+        }
+
+        .feature:nth-child(3) {
+          animation-delay: 0.2s;
+        }
+
+        .feature:hover {
+          transform: translateY(-4px);
+          border-color: rgba(124, 195, 255, 0.55);
+          background: rgba(124, 195, 255, 0.12);
+        }
+
+        .feature:hover strong {
+          animation: featureWiggle 0.45s ease;
+        }
+
+        @keyframes featureWiggle {
+
+          0%,
+          100% {
+            transform: translateX(0);
+          }
+
+          35% {
+            transform: translateX(4px);
+          }
+
+          70% {
+            transform: translateX(-2px);
+          }
+        }
+
+        .feature strong {
+          display: block;
+          color: #eef6ff;
+          margin-bottom: 8px;
+        }
+
+        .feature p {
+          margin: 0;
+          font-size: 0.9rem;
+          line-height: 1.5;
+        }
+
+        .eyebrow {
+          display: inline-block;
+          font-size: 12px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: var(--accent);
+          margin-bottom: 16px;
+        }
+
+        h1 {
+          margin: 0;
+          font-size: clamp(2.5rem, 5vw, 4.5rem);
+          line-height: 1.05;
+        }
+
+        .gradient {
+          background: linear-gradient(90deg, var(--accent), #8b9dff 45%, #93d5ff);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: glowPulse 3.5s ease-in-out infinite;
+        }
+
+        p {
+          color: var(--muted);
+          font-size: 1.05rem;
+          line-height: 1.7;
+          max-width: 60ch;
+          margin: 18px 0 0;
+        }
+
+        .actions {
+          margin-top: 28px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+
+        .button {
+          appearance: none;
+          border: none;
+          border-radius: 999px;
+          padding: 12px 20px;
+          font-size: 1rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+          letter-spacing: 0.01em;
+        }
+
+        .button:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 18px rgba(124, 195, 255, 0.18);
+          filter: brightness(1.08);
+        }
+
+        .button {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .button::after {
+          content: '';
+          position: absolute;
+          top: -50%;
+          left: -80%;
+          width: 45%;
+          height: 200%;
+          background: rgba(255, 255, 255, 0.3);
+          transform: rotate(22deg);
+          transition: left 0.5s ease;
+        }
+
+        .button:hover::after {
+          left: 140%;
+        }
+
+        .primary {
+          background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.7), rgba(var(--accent-2-rgb), 0.7));
+          color: #08111f;
+        }
+
+        .secondary {
+          background: rgba(23, 74, 145, 0.527);
+          color: #eef6ff;
+          border: 1px solid rgba(20, 89, 185, 0.2);
+        }
+
+        .chat {
+          margin: 12px 18px 0;
+          border-top: 1px solid var(--panel-border);
+          padding: 32px 0 12px;
+          animation: chatRise 0.8s ease both;
+        }
+
+        @keyframes chatRise {
+          from {
+            opacity: 0;
+            transform: translateY(24px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .chat-heading {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 14px;
+        }
+
+        .chat-heading h3 {
+          margin: 0;
+          color: #eef6ff;
+          font-size: 1.25rem;
+        }
+
+        .chat-heading span {
+          color: var(--accent);
+          font-size: 0.8rem;
+        }
+
+        .voice-orb {
+          position: relative;
+          width: 104px;
+          aspect-ratio: 1;
+          margin: 22px auto 28px;
+          border-radius: 50%;
+          background: radial-gradient(circle at 35% 28%, #7cc3ff, var(--accent-2) 38%, #172b57 72%);
+          box-shadow: 0 0 28px rgba(124, 195, 255, 0.35), inset -10px -12px 24px rgba(7, 15, 29, 0.55);
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+          animation: orbFloat 4s ease-in-out infinite;
+        }
+
+        @keyframes orbFloat {
+
+          0%,
+          100% {
+            transform: translateY(0) rotate(0deg);
+          }
+
+          50% {
+            transform: translateY(-9px) rotate(4deg);
+          }
+        }
+
+        .voice-orb::before,
+        .voice-orb::after {
+          position: absolute;
+          content: '';
+          inset: -12px;
+          border: 1px solid rgba(124, 195, 255, 0.4);
+          border-radius: 50%;
+          opacity: 0;
+        }
+
+        .voice-orb.is-speaking {
+          transform: scale(1.14);
+          box-shadow: 0 0 44px rgba(124, 195, 255, 0.75), 0 0 88px rgba(139, 92, 246, 0.45), inset -10px -12px 24px rgba(7, 15, 29, 0.4);
+          animation: orbBeat 0.65s ease-in-out infinite alternate;
+        }
+
+        .voice-orb.is-speaking::before {
+          animation: orbRing 1.4s ease-out infinite;
+        }
+
+        .voice-orb.is-speaking::after {
+          animation: orbRing 1.4s 0.7s ease-out infinite;
+        }
+
+        @keyframes orbBeat {
+          from {
+            filter: brightness(1);
+          }
+
+          to {
+            filter: brightness(1.35);
+          }
+        }
+
+        @keyframes orbRing {
+          from {
+            opacity: 0.75;
+            transform: scale(0.8);
+          }
+
+          to {
+            opacity: 0;
+            transform: scale(1.65);
+          }
+        }
+
+        .messages {
+          min-height: 110px;
+          max-height: 220px;
+          overflow-y: auto;
+          display: grid;
+          gap: 10px;
+          padding: 4px;
+          scrollbar-color: rgba(124, 195, 255, 0.55) transparent;
+          scrollbar-width: thin;
+        }
+
+        .message {
+          width: fit-content;
+          max-width: 85%;
+          padding: 10px 14px;
+          border-radius: 14px;
+          line-height: 1.45;
+          animation: messageEnter 0.3s ease both;
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .message::after {
+          content: '';
+          display: block;
+          width: 0;
+          height: 2px;
+          margin-top: 5px;
+          border-radius: 2px;
+          background: var(--accent);
+          opacity: 0.5;
+          animation: messageLine 0.7s 0.2s ease forwards;
+        }
+
+        @keyframes messageLine {
+          to {
+            width: 38px;
+          }
+        }
+
+        .bot-message {
+          background: rgba(124, 195, 255, 0.14);
+          color: var(--muted);
+        }
+
+        .user-message {
+          justify-self: end;
+          background: rgba(139, 92, 246, 0.28);
+          color: #f3e8ff;
+        }
+
+        .chat-form {
+          display: flex;
+          gap: 10px;
+          margin-top: 16px;
+        }
+
+        .chat-input {
+          flex: 1;
+          min-width: 0;
+          border: 1px solid var(--panel-border);
+          border-radius: 12px;
+          padding: 12px 14px;
+          color: #eef6ff;
+          background: rgba(7, 15, 29, 0.5);
+          font: inherit;
+          outline: none;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14) inset;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .chat-input:focus {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px rgba(124, 195, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.14) inset;
+        }
+
+        .chat-send {
+          border: 0;
+          border-radius: 12px;
+          padding: 0 18px;
+          color: #10243d;
+          background: var(--accent);
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .chat-send:disabled {
+          opacity: 0.55;
+          cursor: wait;
+        }
+
+        .chat-send:hover,
+        .mic-button:hover {
+          filter: brightness(1.08);
+        }
+
+        button:focus-visible,
+        input:focus-visible {
+          outline: 3px solid rgba(124, 195, 255, 0.7);
+          outline-offset: 3px;
+        }
+
+        .chat-status {
+          margin: 12px 4px 0;
+          color: var(--muted);
+          font-size: 0.85rem;
+        }
+
+        .chat-status.is-thinking {
+          animation: statusPulse 1s ease-in-out infinite;
+        }
+
+        .chat-tools {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 12px;
+        }
+
+        .chat-extra {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
+          margin-top: 12px;
+        }
+
+        .chat-search,
+        .prompt-button {
+          border: 1px solid var(--panel-border);
+          border-radius: 10px;
+          padding: 9px 12px;
+          color: var(--text);
+          background: rgba(7, 15, 29, 0.45);
+          font: inherit;
+          outline: none;
+          transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .chat-search:focus {
+          border-color: var(--accent);
+          background: rgba(124, 195, 255, 0.08);
+        }
+
+        .prompt-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 10px;
+        }
+
+        .prompt-button {
+          cursor: pointer;
+          color: var(--accent);
+        }
+
+        .prompt-button:hover {
+          border-color: var(--accent);
+        }
+
+        .input-meta {
+          display: flex;
+          justify-content: space-between;
+          color: var(--muted);
+          font-size: 0.75rem;
+          margin-top: 6px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+          *,
+          *::before,
+          *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+          }
+        }
+
+        .chat-back {
+          margin-top: 18px;
+        }
+
+        .voice-page {
+          padding: 54px 18px 24px;
+          text-align: center;
+        }
+
+        .voice-page h2 {
+          margin: 0;
+          color: #eef6ff;
+          font-size: clamp(1.7rem, 4vw, 2.8rem);
+        }
+
+        .voice-page p {
+          margin: 12px auto 0;
+          max-width: 52ch;
+        }
+
+        .mic-button {
+          display: grid;
+          place-items: center;
+          width: 88px;
+          height: 88px;
+          margin: 24px auto 16px;
+          border: 1px solid rgba(124, 195, 255, 0.55);
+          border-radius: 50%;
+          color: #10243d;
+          background: var(--accent);
+          font-size: 2rem;
+          cursor: pointer;
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .mic-button:hover,
+        .mic-button.is-listening {
+          transform: scale(1.12);
+          box-shadow: 0 0 0 12px rgba(124, 195, 255, 0.12), 0 0 42px rgba(124, 195, 255, 0.65);
+        }
+
+        .mic-button.is-listening {
+          animation: micPulse 0.75s ease-in-out infinite alternate;
+        }
+
+        @keyframes micPulse {
+          to {
+            box-shadow: 0 0 0 22px rgba(124, 195, 255, 0.04), 0 0 58px rgba(124, 195, 255, 0.9);
+          }
+        }
+
+        .transcript {
+          min-height: 52px;
+          padding: 14px;
+          border: 1px solid var(--panel-border);
+          border-radius: 12px;
+          color: #eef6ff;
+          background: rgba(7, 15, 29, 0.35);
+        }
+
+        .account-page {
+          width: min(100%, 520px);
+          margin: 0 auto;
+          padding: 64px 18px 34px;
+        }
+
+        .account-page h2 {
+          margin: 0;
+          color: #eef6ff;
+          font-size: clamp(1.7rem, 4vw, 2.6rem);
+        }
+
+        .account-form {
+          display: grid;
+          gap: 14px;
+          margin-top: 28px;
+        }
+
+        .account-label {
+          display: grid;
+          gap: 7px;
+          color: var(--muted);
+          font-size: 0.9rem;
+        }
+
+        .account-input {
+          width: 100%;
+          border: 1px solid var(--panel-border);
+          border-radius: 12px;
+          padding: 13px 14px;
+          color: #eef6ff;
+          background: rgba(7, 15, 29, 0.5);
+          font: inherit;
+          outline: none;
+        }
+
+        .account-input:focus {
+          border-color: var(--accent);
+        }
+
+        .account-card {
+          margin-top: 28px;
+          padding: 22px;
+          border: 1px solid rgba(124, 195, 255, 0.4);
+          border-radius: 16px;
+          background: rgba(124, 195, 255, 0.08);
+        }
+
+        .account-card strong {
+          display: block;
+          color: #eef6ff;
+          font-size: 1.2rem;
+        }
+
+        .account-card p {
+          margin: 8px 0 18px;
+          font-size: 0.95rem;
+        }
+
+        @media (max-width: 700px) {
+          body {
+            padding: 12px 10px 28px;
+          }
+
+          .card {
+            padding: 16px;
+          }
+
+          .topbar {
+            align-items: flex-start;
+          }
+
+          .nav {
+            gap: 10px;
+            font-size: 0.8rem;
+          }
+
+          .hero {
+            grid-template-columns: 1fr;
+            gap: 24px;
+            padding: 42px 6px 32px;
+          }
+
+          .feature-grid {
+            grid-template-columns: 1fr;
+            padding: 0 6px 16px;
+          }
+
+          .video-showcase {
+            padding: 0 6px 24px;
+          }
+
+          .chat {
+            margin-left: 6px;
+            margin-right: 6px;
+          }
+
+          .chat-heading {
+            display: block;
+          }
+
+          .chat-heading span {
+            display: block;
+            margin-top: 6px;
+          }
+
+          .chat-form {
+            flex-direction: column;
+          }
+
+          .chat-send {
+            min-height: 44px;
+          }
+
+          .nav {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+          }
+
+          .nav button {
+            min-height: 32px;
+          }
+
+          .music-choice-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .music-panel {
+            order: 3;
+          }
+        }
+      </style>
+</head>
+
+<body>
+  <canvas id="particle-canvas" aria-hidden="true"></canvas>
+  <div class="cursor-glow" id="cursor-glow" aria-hidden="true"></div>
+  <div class="intro-screen" id="intro-screen" aria-live="polite">
+    <div class="logo-wrap">
+      <div class="logo-burst">
+        <div class="logo-core">AI</div>
+      </div>
+      <div class="intro-text">Luwansangu IA</div>
+    </div>
+  </div>
+
+  <main class="card">
+    <header class="topbar">
+      <div class="brand">Luwansangu <span>IA</span></div>
+      <nav class="nav" aria-label="Navigation principale">
+        <button type="button" data-page="home" data-i18n="navHome">Accueil</button>
+        <button type="button" data-page="home" data-target="fonctionnalites"
+          data-i18n="navFeatures">Fonctionnalités</button>
+        <button type="button" data-page="chat" data-i18n="navAssistant">Assistant</button>
+        <button type="button" data-page="voice" data-i18n="navVoice">Chat vocal</button>
+        <button type="button" data-page="account" data-i18n="navAccount">Compte</button>
+        <button type="button" data-page="reviews" data-i18n="navReviews">Avis</button>
+        <button type="button" data-page="music" data-i18n="navMusic">Musiques</button>
+        <button type="button" data-page="extras" data-i18n="navExtras">Plus</button>
+        <button type="button" id="lang-toggle" aria-label="Toggle language">EN</button>
+        <div class="music-panel" aria-label="Contrôle de musique ambiante">
+          <button type="button" id="music-toggle" aria-label="Lecture de musique ambiante">♪ Musique</button>
+          <input id="music-volume" type="range" min="0" max="100" value="35" aria-label="Volume de la musique" />
+        </div>
+        <button type="button" id="theme-toggle" aria-label="Changer de thème">☼</button>
+      </nav>
+    </header>
+
+    <div class="page-section" id="home-page">
+      <section class="hero" id="accueil">
+        <div>
+          <div class="eyebrow" data-i18n="eyebrowHome">Assistant privé · local</div>
+          <h1><span class="gradient" data-i18n="heroTitle">Une IA qui vous accompagne.</span></h1>
+          <h2 data-i18n="heroSubtitle">Posez vos questions. Obtenez des réponses. Gardez vos échanges chez vous.</h2>
+          <p data-i18n="heroText">Un espace simple pour discuter avec une intelligence artificielle locale, avec la voix
+            et sans clé API.</p>
+          <div class="actions">
+            <button class="button primary" type="button" id="focus-chat" data-i18n="btnTalk">Parler à l’IA</button>
+            <button class="button secondary" type="button" id="focus-voice" data-i18n="btnVoice">🎙 Chat vocal</button>
+            <button class="button secondary" type="button" id="voice-toggle" aria-pressed="true"
+              data-i18n="btnVoiceOn">🔊 Voix activée</button>
+          </div>
+        </div>
+        <aside class="hero-panel">
+          <strong data-i18n="panelTitle">Votre espace de conversation</strong>
+          <p data-i18n="panelText">Demandez une explication, une idée, une traduction ou de l’aide pour apprendre.</p>
+          <div class="chat-status" data-i18n="panelStatus">● Données traitées localement avec Ollama</div>
+        </aside>
+      </section>
+
+      <section class="video-showcase" aria-label="Vidéo de présentation">
+        <div class="eyebrow" data-i18n="videoEyebrow">Vidéo de présentation</div>
+        <h2 data-i18n="videoTitle">Ma première application (RS.1)</h2>
+        <div class="video-frame">
+          <iframe
+            src="https://www.youtube.com/embed/HFdgIzKfNLM"
+            title="ma premier app (RS.1)"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen></iframe>
+        </div>
+      </section>
+
+      <section class="feature-grid" id="fonctionnalites" aria-label="Fonctionnalités">
+        <article class="feature"><strong data-i18n="feature1Title">Réponses libres</strong>
+          <p data-i18n="feature1Text">Posez vos questions dans vos propres mots et poursuivez la discussion.</p>
+        </article>
+        <article class="feature"><strong data-i18n="feature2Title">Voix intégrée</strong>
+          <p data-i18n="feature2Text">Écoutez les réponses grâce au haut-parleur de votre appareil.</p>
+        </article>
+        <article class="feature"><strong data-i18n="feature3Title">Sans clé API</strong>
+          <p data-i18n="feature3Text">Le modèle tourne localement grâce à Ollama, sans abonnement externe.</p>
+        </article>
+      </section>
+    </div>
+
+    <div class="page-section" id="reviews-page" hidden>
+      <section class="reviews-page" aria-label="Avis clients">
+        <div class="eyebrow" data-i18n="reviewsEyebrow">Témoignages</div>
+        <h2 data-i18n="reviewsTitle">Ils ont adoré l’expérience</h2>
+        <p data-i18n="reviewsText">Des avis positifs inspirés de vrais retours utilisateurs, pour donner du dynamisme à
+          la page.</p>
+        <div class="reviews-grid">
+          <article class="review-card">
+            <div class="review-stars">★★★★★</div>
+            <p>“L’interface est magnifique, très fluide et incroyablement agréable à utiliser au quotidien.”</p>
+            <strong>Amélie D.</strong>
+          </article>
+          <article class="review-card">
+            <div class="review-stars">★★★★★</div>
+            <p>“J’ai adoré la simplicité, l’ambiance et le côté premium. Tout est bien pensé.”</p>
+            <strong>Lucas P.</strong>
+          </article>
+          <article class="review-card">
+            <div class="review-stars">★★★★★</div>
+            <p>“Le meilleur point est la sensation d’être accompagné, sans complication ni surcharge.”</p>
+            <strong>Sarah M.</strong>
+          </article>
+          <article class="review-card">
+            <div class="review-stars">★★★★★</div>
+            <p>“Le chat, la musique et les outils sont vraiment top. Cela donne envie d’utiliser le site tous les
+              jours.”</p>
+            <strong>Kevin T.</strong>
+          </article>
+          <article class="review-card">
+            <div class="review-stars">★★★★★</div>
+            <p>“Très beau design, très clair et ultra pratique. On a l’impression d’avoir un assistant perso.”</p>
+            <strong>Naomi R.</strong>
+          </article>
+          <article class="review-card">
+            <div class="review-stars">★★★★★</div>
+            <p>“Une expérience premium, moderne et très rassurante. On se sent immédiatement à l’aise.”</p>
+            <strong>Yanis C.</strong>
+          </article>
+        </div>
+        <button class="button secondary chat-back" type="button" data-page="home" data-i18n="backHome">← Retour à
+          l’accueil</button>
+      </section>
+    </div>
+
+    <div class="page-section" id="music-page" hidden>
+      <section class="music-page" aria-label="Choix de musique">
+        <div class="eyebrow" data-i18n="musicEyebrow">Ambiance locale</div>
+        <h2 data-i18n="musicTitle">Choisissez votre musique</h2>
+        <p data-i18n="musicText">Sélectionnez une ambiance parmi dix styles. Le son reste généré localement dans votre
+          navigateur.</p>
+        <div class="music-choice-grid" id="music-choice-grid">
+          <button class="music-choice active" type="button" data-music="calme"><span
+              class="music-choice-icon">🌙</span><span><strong>Calme</strong><small>Pour se détendre</small></span><span
+              class="music-choice-state">Actif</span></button>
+          <button class="music-choice" type="button" data-music="cinematic"><span
+              class="music-choice-icon">🎬</span><span><strong>Cinéma</strong><small>Grande ambiance</small></span><span
+              class="music-choice-state">Choisir</span></button>
+          <button class="music-choice" type="button" data-music="energisant"><span
+              class="music-choice-icon">⚡</span><span><strong>Énergie</strong><small>Pour avancer</small></span><span
+              class="music-choice-state">Choisir</span></button>
+          <button class="music-choice" type="button" data-music="focus"><span
+              class="music-choice-icon">◉</span><span><strong>Concentration</strong><small>Pour
+                travailler</small></span><span class="music-choice-state">Choisir</span></button>
+          <button class="music-choice" type="button" data-music="ocean"><span
+              class="music-choice-icon">🌊</span><span><strong>Océan</strong><small>Vagues
+                imaginaires</small></span><span class="music-choice-state">Choisir</span></button>
+          <button class="music-choice" type="button" data-music="forest"><span
+              class="music-choice-icon">🌿</span><span><strong>Forêt</strong><small>Nature profonde</small></span><span
+              class="music-choice-state">Choisir</span></button>
+          <button class="music-choice" type="button" data-music="night"><span
+              class="music-choice-icon">✨</span><span><strong>Nuit étoilée</strong><small>Douce et
+                lente</small></span><span class="music-choice-state">Choisir</span></button>
+          <button class="music-choice" type="button" data-music="piano"><span
+              class="music-choice-icon">🎹</span><span><strong>Piano</strong><small>Élégant et
+                simple</small></span><span class="music-choice-state">Choisir</span></button>
+          <button class="music-choice" type="button" data-music="sunrise"><span
+              class="music-choice-icon">☀️</span><span><strong>Aube</strong><small>Commencer
+                doucement</small></span><span class="music-choice-state">Choisir</span></button>
+          <button class="music-choice" type="button" data-music="space"><span
+              class="music-choice-icon">🪐</span><span><strong>Espace</strong><small>Voyage
+                futuriste</small></span><span class="music-choice-state">Choisir</span></button>
+        </div>
+        <button class="button secondary chat-back" type="button" data-page="home" data-i18n="backHome">← Retour à
+          l’accueil</button>
+      </section>
+    </div>
+
+    <div class="page-section" id="extras-page" hidden>
+      <section class="extras-page" aria-label="Outils supplémentaires">
+        <div class="eyebrow" data-i18n="extrasEyebrow">Outils locaux</div>
+        <h2 data-i18n="extrasTitle">Options complémentaires</h2>
+        <p data-i18n="extrasText">Gardez vos idées, votre temps et vos citations à portée de main, directement dans ce
+          navigateur.</p>
+        <div class="extras-grid">
+          <div class="extra-card">
+            <h3 data-i18n="noteTitle">Bloc-notes</h3>
+            <textarea id="quick-note" aria-label="Bloc-notes"></textarea>
+            <div class="extra-actions">
+              <button type="button" class="mini-button" id="save-note" data-i18n="saveNote">Enregistrer</button>
+              <button type="button" class="mini-button" id="copy-note" data-i18n="copyNote">Copier</button>
+              <button type="button" class="mini-button" id="clear-note" data-i18n="clearNote">Effacer</button>
+            </div>
+          </div>
+          <div class="extra-card">
+            <h3 data-i18n="timerTitle">Minuteur</h3>
+            <input id="timer-minutes" type="number" min="1" max="180" value="25" aria-label="Minutes du minuteur" />
+            <span class="timer-display" id="timer-display">25:00</span>
+            <div class="extra-actions">
+              <button type="button" class="mini-button" id="start-timer" data-i18n="startTimer">Démarrer</button>
+              <button type="button" class="mini-button" id="pause-timer" data-i18n="pauseTimer">Pause</button>
+            </div>
+          </div>
+          <div class="extra-card">
+            <h3 data-i18n="quoteTitle">Citation</h3>
+            <div class="quotes-box" id="quote-box">"La simplicité est la sophistication suprême."</div>
+            <div class="extra-actions">
+              <button type="button" class="mini-button" id="new-quote" data-i18n="newQuote">Nouvelle citation</button>
+            </div>
+          </div>
+          <div class="extra-card">
+            <h3 data-i18n="shortcutsTitle">Raccourcis utiles</h3>
+            <div class="quotes-box">
+              <ul>
+                <li>Ctrl/Cmd + K → ouvrir l’assistant</li>
+                <li>Esc → arrêter la voix</li>
+                <li>M → activer/désactiver la musique</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <button class="button secondary chat-back" type="button" data-page="home" data-i18n="backHome">← Retour à
+          l’accueil</button>
+      </section>
+    </div>
+
+    <div class="page-section" id="chat-page" hidden>
+      <section class="chat" aria-label="Conversation avec l’IA">
+        <div class="chat-heading" id="assistant">
+          <h3 data-i18n="chatTitle">Commencer une conversation</h3>
+          <span>Ollama · llama3.2</span>
+        </div>
+        <div class="voice-orb" id="voice-orb" role="status" aria-label="Haut-parleur inactif"></div>
+        <div class="messages" id="messages" aria-live="polite">
+          <div class="message bot-message" data-i18n="botWelcome">Bonjour ! Je suis RS.; IA. Dis-moi bonjour pour
+            commencer.</div>
+        </div>
+        <form class="chat-form" id="chat-form">
+          <input class="chat-input" id="chat-input" type="text" maxlength="2000"
+            data-i18n-placeholder="chatInputPlaceholder" placeholder="Écris un message..." autocomplete="off" />
+          <button class="chat-send" type="submit" data-i18n="sendBtn">Envoyer</button>
+        </form>
+        <div class="input-meta"><span data-i18n="promptHint">Suggestions rapides</span><span id="char-count">0 /
+            2000</span></div>
+        <div class="prompt-list">
+          <button class="prompt-button" type="button" data-prompt="Explique-moi simplement ce sujet.">Expliquer</button>
+          <button class="prompt-button" type="button" data-prompt="Donne-moi une idée de projet.">Idée</button>
+          <button class="prompt-button" type="button" data-prompt="Résume cette information.">Résumer</button>
+        </div>
+        <div class="chat-extra">
+          <input class="chat-search" id="chat-search" type="search" data-i18n-placeholder="searchPlaceholder"
+            placeholder="Rechercher dans le chat..." />
+          <button class="button secondary" type="button" id="check-ollama" data-i18n="checkOllamaBtn">Tester
+            Ollama</button>
+        </div>
+        <div class="chat-status" id="chat-status" data-i18n="chatStatusWaiting">IA locale : connexion à Ollama en
+          attente</div>
+        <div class="chat-tools">
+          <button class="button secondary" type="button" id="clear-chat" data-i18n="clearChatBtn">Effacer la
+            conversation</button>
+          <button class="button secondary" type="button" id="copy-chat" data-i18n="copyChatBtn">Copier</button>
+          <button class="button secondary" type="button" id="export-chat" data-i18n="exportChatBtn">Exporter</button>
+          <button class="button secondary" type="button" id="copy-last" data-i18n="copyLastBtn">Dernière
+            réponse</button>
+          <button class="button secondary" type="button" id="export-json" data-i18n="exportJsonBtn">JSON</button>
+          <button class="button secondary" type="button" id="clear-history" data-i18n="clearHistoryBtn">Supprimer
+            l’historique</button>
+        </div>
+        <button class="button secondary chat-back" type="button" data-page="home" data-i18n="backHome">← Retour à
+          l’accueil</button>
+      </section>
+    </div>
+
+    <div class="page-section" id="voice-page" hidden>
+      <section class="voice-page" aria-label="Chat vocal">
+        <div class="eyebrow" data-i18n="voiceEyebrow">Conversation mains libres</div>
+        <h2 data-i18n="voiceTitle">Parlez directement à Luwansangu IA</h2>
+        <p data-i18n="voiceText">Appuyez sur le microphone, posez votre question, puis écoutez la réponse dans le
+          haut-parleur.</p>
+        <div class="voice-orb" id="voice-orb-vocal" role="status" aria-label="Haut-parleur inactif"></div>
+        <button class="mic-button" id="mic-button" type="button" aria-label="Microphone"
+          data-i18n="voiceMic">🎙</button>
+        <div class="transcript" id="voice-transcript" data-i18n="voiceTranscriptIdle">Appuyez pour parler</div>
+        <div class="chat-status" id="voice-status" data-i18n="voiceStatusReady">Microphone prêt</div>
+        <button class="button secondary chat-back" type="button" data-page="home" data-i18n="backHome">← Retour à
+          l’accueil</button>
+      </section>
+    </div>
+
+    <div class="page-section" id="account-page" hidden>
+      <section class="account-page" aria-label="Compte utilisateur">
+        <div class="eyebrow" data-i18n="accountEyebrow">Espace personnel</div>
+        <h2 data-i18n="accountTitle">Connectez-vous à votre compte</h2>
+        <p data-i18n="accountText">Retrouvez votre espace Luwansangu sur cet appareil. Cette version conserve uniquement
+          votre nom et votre adresse locale.</p>
+        <form class="account-form" id="account-form">
+          <label class="account-label"><span data-i18n="accountNameLabel">Nom</span>
+            <input class="account-input" id="account-name" type="text" data-i18n-placeholder="accountNamePlaceholder"
+              placeholder="Votre nom" required />
+          </label>
+          <label class="account-label"><span data-i18n="accountEmailLabel">Adresse e-mail</span>
+            <input class="account-input" id="account-email" type="email" data-i18n-placeholder="accountEmailPlaceholder"
+              placeholder="vous@exemple.fr" required />
+          </label>
+          <label class="account-label"><span data-i18n="accountPasswordLabel">Mot de passe</span>
+            <input class="account-input" id="account-password" type="password"
+              data-i18n-placeholder="accountPasswordPlaceholder" placeholder="Votre mot de passe" required
+              minlength="4" />
+          </label>
+          <button class="button primary" type="submit" data-i18n="accountLoginBtn">Se connecter</button>
+        </form>
+        <div class="account-card" id="account-session" hidden>
+          <strong id="account-welcome"></strong>
+          <p id="account-detail"></p>
+          <button class="button primary" id="send-account" type="button" data-i18n="accountMailBtn">Envoyer mes infos
+            par e-mail</button>
+          <button class="button secondary" id="account-logout" type="button" data-i18n="accountLogoutBtn">Se
+            déconnecter</button>
+        </div>
+        <div class="chat-status" id="account-status" data-i18n="accountStatus">Session locale, sans serveur.</div>
+        <button class="button secondary chat-back" type="button" data-page="home" data-i18n="backHome">← Retour à
+          l’accueil</button>
+      </section>
+    </div>
+  </main>
+  <script>
+    const form = document.querySelector('#chat-form');
+    const input = document.querySelector('#chat-input');
+    const messages = document.querySelector('#messages');
+    const voiceToggle = document.querySelector('#voice-toggle');
+    const voiceOrbs = document.querySelectorAll('.voice-orb');
+    const status = document.querySelector('#chat-status');
+    const sendButton = document.querySelector('.chat-send');
+    const homePage = document.querySelector('#home-page');
+    const chatPage = document.querySelector('#chat-page');
+    const voicePage = document.querySelector('#voice-page');
+    const accountPage = document.querySelector('#account-page');
+    const musicPage = document.querySelector('#music-page');
+    const reviewsPage = document.querySelector('#reviews-page');
+    const extrasPage = document.querySelector('#extras-page');
+    const micButton = document.querySelector('#mic-button');
+    const voiceTranscript = document.querySelector('#voice-transcript');
+    const voiceStatus = document.querySelector('#voice-status');
+    const accountForm = document.querySelector('#account-form');
+    const accountName = document.querySelector('#account-name');
+    const accountEmail = document.querySelector('#account-email');
+    const accountPassword = document.querySelector('#account-password');
+    const accountSession = document.querySelector('#account-session');
+    const accountWelcome = document.querySelector('#account-welcome');
+    const accountDetail = document.querySelector('#account-detail');
+    const accountStatus = document.querySelector('#account-status');
+    const sendAccount = document.querySelector('#send-account');
+    const langToggle = document.querySelector('#lang-toggle');
+    const themeToggle = document.querySelector('#theme-toggle');
+    const musicToggle = document.querySelector('#music-toggle');
+    const musicVolumeInput = document.querySelector('#music-volume');
+    const copyChatButton = document.querySelector('#copy-chat');
+    const exportChatButton = document.querySelector('#export-chat');
+    const copyLastButton = document.querySelector('#copy-last');
+    const exportJsonButton = document.querySelector('#export-json');
+    const clearHistoryButton = document.querySelector('#clear-history');
+    const chatSearch = document.querySelector('#chat-search');
+    const charCount = document.querySelector('#char-count');
+    const checkOllamaButton = document.querySelector('#check-ollama');
+    const ollamaUrl = 'http://localhost:11434/api/chat';
+    const ollamaModel = 'llama3.2';
+    let conversation = [];
+    let voiceEnabled = true;
+    let currentLang = 'fr';
+    const chatHistoryKey = 'luwansangu-chat-history';
+    let lightTheme = localStorage.getItem('luwansangu-theme') === 'light';
+    document.body.classList.toggle('light-theme', lightTheme);
+
+    const translations = {
+      fr: {
+        navHome: 'Accueil',
+        navFeatures: 'Fonctionnalités',
+        navAssistant: 'Assistant',
+        navVoice: 'Chat vocal',
+        navAccount: 'Compte',
+        navReviews: 'Avis',
+        navMusic: 'Musiques',
+        navExtras: 'Plus',
+        eyebrowHome: 'Assistant privé · local',
+        videoEyebrow: 'Vidéo de présentation',
+        videoTitle: 'Ma première application (RS.1)',
+        heroTitle: 'Une IA qui vous accompagne.',
+        heroSubtitle: 'Posez vos questions. Obtenez des réponses. Gardez vos échanges chez vous.',
+        heroText: 'Un espace simple pour discuter avec une intelligence artificielle locale, avec la voix et sans clé API.',
+        btnTalk: 'Parler à l’IA',
+        btnVoice: '🎙 Chat vocal',
+        btnVoiceOn: '🔊 Voix activée',
+        btnVoiceOff: '🔇 Voix coupée',
+        langToggleLabel: 'Passer en anglais',
+        voiceMic: '🎙',
+        speakerActive: 'Haut-parleur actif',
+        speakerInactive: 'Haut-parleur inactif',
+        panelTitle: 'Votre espace de conversation',
+        panelText: 'Demandez une explication, une idée, une traduction ou de l’aide pour apprendre.',
+        panelStatus: '● Données traitées localement avec Ollama',
+        feature1Title: 'Réponses libres',
+        feature1Text: 'Posez vos questions dans vos propres mots et poursuivez la discussion.',
+        feature2Title: 'Voix intégrée',
+        feature2Text: 'Écoutez les réponses grâce au haut-parleur de votre appareil.',
+        feature3Title: 'Sans clé API',
+        feature3Text: 'Le modèle tourne localement grâce à Ollama, sans abonnement externe.',
+        chatTitle: 'Commencer une conversation',
+        botWelcome: 'Bonjour ! Je suis Luwansangu IA. Dis-moi bonjour pour commencer.',
+        chatInputPlaceholder: 'Écris un message...',
+        sendBtn: 'Envoyer',
+        clearChatBtn: 'Effacer la conversation',
+        copyChatBtn: 'Copier',
+        exportChatBtn: 'Exporter',
+        copyLastBtn: 'Dernière réponse',
+        exportJsonBtn: 'JSON',
+        clearHistoryBtn: 'Supprimer l’historique',
+        checkOllamaBtn: 'Tester Ollama',
+        promptHint: 'Suggestions rapides',
+        searchPlaceholder: 'Rechercher dans le chat...',
+        backHome: '← Retour à l’accueil',
+        chatStatusWaiting: 'IA locale : connexion à Ollama en attente',
+        voiceEyebrow: 'Conversation mains libres',
+        voiceTitle: 'Parlez directement à Luwansangu IA',
+        voiceText: 'Appuyez sur le microphone, posez votre question, puis écoutez la réponse dans le haut-parleur.',
+        voiceTranscriptIdle: 'Appuyez pour parler',
+        voiceStatusReady: 'Microphone prêt',
+        accountEyebrow: 'Espace personnel',
+        accountTitle: 'Connectez-vous à votre compte',
+        accountText: 'Retrouvez votre espace Luwansangu sur cet appareil. Cette version conserve uniquement votre nom et votre adresse locale.',
+        accountNameLabel: 'Nom',
+        accountNamePlaceholder: 'Votre nom',
+        accountEmailLabel: 'Adresse e-mail',
+        accountEmailPlaceholder: 'vous@exemple.fr',
+        accountPasswordLabel: 'Mot de passe',
+        accountPasswordPlaceholder: 'Votre mot de passe',
+        accountLoginBtn: 'Se connecter',
+        accountMailBtn: 'Envoyer mes infos par e-mail',
+        accountLogoutBtn: 'Se déconnecter',
+        accountStatus: 'Session locale, sans serveur.',
+        reviewsEyebrow: 'Témoignages',
+        reviewsTitle: 'Ils ont adoré l’expérience',
+        reviewsText: 'Des avis positifs inspirés de vrais retours utilisateurs, pour donner du dynamisme à la page.',
+        musicEyebrow: 'Ambiance locale',
+        musicTitle: 'Choisissez votre musique',
+        musicText: 'Sélectionnez une ambiance parmi dix styles. Le son reste généré localement dans votre navigateur.',
+        extrasEyebrow: 'Outils locaux',
+        extrasTitle: 'Options complémentaires',
+        extrasText: 'Gardez vos idées, votre temps et vos citations à portée de main, directement dans ce navigateur.',
+        noteTitle: 'Bloc-notes',
+        saveNote: 'Enregistrer',
+        copyNote: 'Copier',
+        clearNote: 'Effacer',
+        timerTitle: 'Minuteur',
+        startTimer: 'Démarrer',
+        pauseTimer: 'Pause',
+        quoteTitle: 'Citation',
+        newQuote: 'Nouvelle citation',
+        shortcutsTitle: 'Raccourcis utiles'
+      },
+      en: {
+        navHome: 'Home',
+        navFeatures: 'Features',
+        navAssistant: 'Assistant',
+        navVoice: 'Voice chat',
+        navAccount: 'Account',
+        navReviews: 'Reviews',
+        navMusic: 'Music',
+        navExtras: 'More',
+        eyebrowHome: 'Private local assistant',
+        videoEyebrow: 'Project video',
+        videoTitle: 'My first app (RS.1)',
+        heroTitle: 'An AI that supports you.',
+        heroSubtitle: 'Ask your questions. Get answers. Keep your conversations at home.',
+        heroText: 'A simple space to chat with a local AI, with voice and without an API key.',
+        btnTalk: 'Talk to the AI',
+        btnVoice: '🎙 Voice chat',
+        btnVoiceOn: '🔊 Voice enabled',
+        btnVoiceOff: '🔇 Voice muted',
+        langToggleLabel: 'Switch to French',
+        voiceMic: '🎙',
+        speakerActive: 'Speaker active',
+        speakerInactive: 'Speaker inactive',
+        panelTitle: 'Your conversation space',
+        panelText: 'Ask for an explanation, an idea, a translation or help to learn.',
+        panelStatus: '● Processed locally with Ollama',
+        feature1Title: 'Free answers',
+        feature1Text: 'Ask your questions in your own words and continue the discussion.',
+        feature2Title: 'Built-in voice',
+        feature2Text: 'Listen to the answers using your device speaker.',
+        feature3Title: 'No API key',
+        feature3Text: 'The model runs locally with Ollama, without any external subscription.',
+        chatTitle: 'Start a conversation',
+        botWelcome: 'Hello! I am Luwansangu AI. Say hello to get started.',
+        chatInputPlaceholder: 'Write a message...',
+        sendBtn: 'Send',
+        clearChatBtn: 'Clear conversation',
+        copyChatBtn: 'Copy',
+        exportChatBtn: 'Export',
+        copyLastBtn: 'Last answer',
+        exportJsonBtn: 'JSON',
+        clearHistoryBtn: 'Delete history',
+        checkOllamaBtn: 'Check Ollama',
+        promptHint: 'Quick prompts',
+        searchPlaceholder: 'Search the chat...',
+        backHome: '← Back to home',
+        chatStatusWaiting: 'Local AI: waiting for Ollama connection',
+        voiceEyebrow: 'Hands-free conversation',
+        voiceTitle: 'Talk directly to Luwansangu AI',
+        voiceText: 'Press the microphone, ask your question, then listen to the answer through the speaker.',
+        voiceTranscriptIdle: 'Press to speak',
+        voiceStatusReady: 'Microphone ready',
+        accountEyebrow: 'Personal space',
+        accountTitle: 'Connect to your account',
+        accountText: 'Find your Luwansangu space on this device. This version keeps only your name and local email address.',
+        accountNameLabel: 'Name',
+        accountNamePlaceholder: 'Your name',
+        accountEmailLabel: 'Email address',
+        accountEmailPlaceholder: 'you@example.com',
+        accountPasswordLabel: 'Password',
+        accountPasswordPlaceholder: 'Your password',
+        accountLoginBtn: 'Log in',
+        accountMailBtn: 'Send my info by email',
+        accountLogoutBtn: 'Log out',
+        accountStatus: 'Local session, no server.',
+        reviewsEyebrow: 'Testimonials',
+        reviewsTitle: 'They loved the experience',
+        reviewsText: 'Positive feedback inspired by real user reviews to add energy to the page.',
+        musicEyebrow: 'Local ambience',
+        musicTitle: 'Choose your music',
+        musicText: 'Select one of ten styles. The sound is generated locally in your browser.',
+        extrasEyebrow: 'Local tools',
+        extrasTitle: 'Extra options',
+        extrasText: 'Keep your ideas, your time and your quotes within easy reach, directly in this browser.',
+        noteTitle: 'Notepad',
+        saveNote: 'Save',
+        copyNote: 'Copy',
+        clearNote: 'Clear',
+        timerTitle: 'Timer',
+        startTimer: 'Start',
+        pauseTimer: 'Pause',
+        quoteTitle: 'Quote',
+        newQuote: 'New quote',
+        shortcutsTitle: 'Useful shortcuts'
+      }
+    };
+
+    const translate = (key) => translations[currentLang][key] || key;
+
+    let musicContext = null;
+    let musicGain = null;
+    let musicNodes = [];
+    let musicEnabled = false;
+    let musicMode = 'calme';
+
+    const musicProfiles = {
+      calme: { label: 'Calme', gain: 0.032, filter: 1200, base: [146.83, 174.61, 196, 220], lfo: 0.07 },
+      cinematic: { label: 'Cinéma', gain: 0.042, filter: 1650, base: [110, 146.83, 196, 261.63], lfo: 0.1 },
+      energisant: { label: 'Énergie', gain: 0.052, filter: 2200, base: [164.81, 220, 293.66, 329.63], lfo: 0.14 },
+      focus: { label: 'Concentration', gain: 0.028, filter: 1050, base: [130.81, 164.81, 196, 246.94], lfo: 0.055 },
+      ocean: { label: 'Océan', gain: 0.036, filter: 850, base: [98, 130.81, 146.83, 196], lfo: 0.045 },
+      forest: { label: 'Forêt', gain: 0.034, filter: 1400, base: [123.47, 155.56, 185, 233.08], lfo: 0.06 },
+      night: { label: 'Nuit étoilée', gain: 0.026, filter: 900, base: [103.83, 138.59, 164.81, 207.65], lfo: 0.04 },
+      piano: { label: 'Piano', gain: 0.04, filter: 1900, base: [130.81, 164.81, 196, 261.63], lfo: 0.08 },
+      sunrise: { label: 'Aube', gain: 0.038, filter: 1750, base: [146.83, 185, 220, 277.18], lfo: 0.09 },
+      space: { label: 'Espace', gain: 0.03, filter: 700, base: [82.41, 110, 146.83, 220], lfo: 0.035 }
+    };
+
+    const applyMusicProfile = () => {
+      if (!musicContext || !musicGain || musicNodes.length === 0) return;
+      const profile = musicProfiles[musicMode] || musicProfiles.calme;
+      const volume = Number(musicVolumeInput?.value || 35) / 100;
+      musicGain.gain.setTargetAtTime(profile.gain * volume, musicContext.currentTime, 0.6);
+      musicNodes.forEach((node, index) => {
+        const targetFrequency = profile.base[index] || profile.base[0];
+        node.oscillator.frequency.setTargetAtTime(targetFrequency, musicContext.currentTime, 0.7);
+        node.filter.frequency.setTargetAtTime(profile.filter + index * 180, musicContext.currentTime, 0.7);
+        node.gainNode.gain.setTargetAtTime(index % 2 === 0 ? 0.016 : 0.013, musicContext.currentTime, 0.6);
+      });
+    };
+
+    const setMusicButtonState = () => {
+      if (!musicToggle) return;
+      const profile = musicProfiles[musicMode] || musicProfiles.calme;
+      const label = currentLang === 'fr' ? (musicEnabled ? `♪ ${profile.label} ON` : `♪ ${profile.label}`) : (musicEnabled ? `♪ ${profile.label} ON` : `♪ ${profile.label}`);
+      musicToggle.textContent = label;
+      musicToggle.classList.toggle('is-on', musicEnabled);
+      musicToggle.setAttribute('aria-label', currentLang === 'fr' ? (musicEnabled ? 'Couper la musique ambiante' : 'Lecture de musique ambiante') : (musicEnabled ? 'Turn off ambient music' : 'Play ambient music'));
+      document.querySelectorAll('.music-choice').forEach((choice) => {
+        const active = choice.dataset.music === musicMode;
+        choice.classList.toggle('active', active);
+        const state = choice.querySelector('.music-choice-state');
+        if (state) state.textContent = active ? (currentLang === 'fr' ? 'Actif' : 'Active') : (currentLang === 'fr' ? 'Choisir' : 'Choose');
+      });
+    };
+
+    const startAmbientMusic = async () => {
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) {
+        musicToggle.disabled = true;
+        return;
+      }
+
+      if (!musicContext) {
+        musicContext = new AudioCtor();
+        musicGain = musicContext.createGain();
+        musicGain.gain.value = 0.0001;
+        musicGain.connect(musicContext.destination);
+
+        const baseFrequencies = [146.83, 174.61, 196, 220];
+        musicNodes = baseFrequencies.map((frequency, index) => {
+          const oscillator = musicContext.createOscillator();
+          const gainNode = musicContext.createGain();
+          const filter = musicContext.createBiquadFilter();
+
+          oscillator.type = index % 2 === 0 ? 'sine' : 'triangle';
+          oscillator.frequency.value = frequency;
+          filter.type = 'lowpass';
+          filter.frequency.value = 1200 + index * 180;
+          filter.Q.value = 0.6;
+          gainNode.gain.value = 0.012;
+
+          oscillator.connect(filter);
+          filter.connect(gainNode);
+          gainNode.connect(musicGain);
+          oscillator.start();
+          return { oscillator, gainNode, filter };
+        });
+
+        const lfo = musicContext.createOscillator();
+        const lfoGain = musicContext.createGain();
+        lfo.type = 'sine';
+        lfo.frequency.value = 0.1;
+        lfoGain.gain.value = 14;
+        lfo.connect(lfoGain);
+        musicNodes.forEach((node, index) => {
+          lfoGain.connect(node.oscillator.frequency);
+          node.oscillator.frequency.setValueAtTime(node.oscillator.frequency.value + index * 2, musicContext.currentTime);
+        });
+        lfo.start();
+      }
+
+      if (musicContext.state === 'suspended') {
+        await musicContext.resume();
+      }
+
+      applyMusicProfile();
+      musicEnabled = true;
+      setMusicButtonState();
+    };
+
+    const stopAmbientMusic = () => {
+      if (!musicContext || !musicGain) return;
+      musicGain.gain.cancelScheduledValues(musicContext.currentTime);
+      musicGain.gain.setTargetAtTime(0.0001, musicContext.currentTime, 0.6);
+      musicEnabled = false;
+      setMusicButtonState();
+    };
+
+    const applyLanguage = () => {
+      const lang = translations[currentLang];
+      document.querySelectorAll('[data-i18n]').forEach((element) => {
+        const key = element.dataset.i18n;
+        if (lang[key]) element.textContent = lang[key];
+      });
+
+      document.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
+        const key = element.dataset.i18nPlaceholder;
+        if (lang[key]) element.placeholder = lang[key];
+      });
+
+      langToggle.textContent = currentLang === 'fr' ? 'EN' : 'FR';
+      langToggle.setAttribute('aria-label', translate('langToggleLabel'));
+      themeToggle.textContent = lightTheme ? '☾' : '☼';
+      themeToggle.setAttribute('aria-label', lightTheme ? 'Activer le thème sombre' : 'Activer le thème clair');
+      voiceToggle.textContent = voiceEnabled ? translate('btnVoiceOn') : translate('btnVoiceOff');
+      micButton.setAttribute('aria-label', currentLang === 'fr' ? 'Microphone' : 'Microphone');
+      voiceOrbs.forEach((orb) => orb.setAttribute('aria-label', translate('speakerInactive')));
+      document.documentElement.lang = currentLang;
+      setMusicButtonState();
+    };
+
+    langToggle.addEventListener('click', () => {
+      currentLang = currentLang === 'fr' ? 'en' : 'fr';
+      applyLanguage();
+    });
+
+    themeToggle.addEventListener('click', () => {
+      lightTheme = !lightTheme;
+      document.body.classList.toggle('light-theme', lightTheme);
+      localStorage.setItem('luwansangu-theme', lightTheme ? 'light' : 'dark');
+      applyLanguage();
+    });
+
+    const introScreen = document.querySelector('#intro-screen');
+
+    const particleCanvas = document.querySelector('#particle-canvas');
+    const particleContext = particleCanvas.getContext('2d');
+    const cursorGlow = document.querySelector('#cursor-glow');
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let particles = [];
+
+    const resizeParticles = () => {
+      const scale = window.devicePixelRatio || 1;
+      particleCanvas.width = window.innerWidth * scale;
+      particleCanvas.height = window.innerHeight * scale;
+      particleContext.setTransform(scale, 0, 0, scale, 0, 0);
+    };
+
+    const createParticles = () => {
+      const count = Math.min(75, Math.max(28, Math.floor(window.innerWidth / 18)));
+      particles = Array.from({ length: count }, () => ({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        size: Math.random() * 2.2 + 0.6,
+        speedX: (Math.random() - 0.5) * 0.28,
+        speedY: (Math.random() - 0.5) * 0.28,
+        alpha: Math.random() * 0.55 + 0.15
+      }));
+    };
+
+    const animateParticles = () => {
+      particleContext.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      particles.forEach((particle, index) => {
+        particle.x += particle.speedX;
+        particle.y += particle.speedY;
+        if (particle.x < -10) particle.x = window.innerWidth + 10;
+        if (particle.x > window.innerWidth + 10) particle.x = -10;
+        if (particle.y < -10) particle.y = window.innerHeight + 10;
+        if (particle.y > window.innerHeight + 10) particle.y = -10;
+        particleContext.beginPath();
+        particleContext.fillStyle = `rgba(124, 195, 255, ${particle.alpha})`;
+        particleContext.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        particleContext.fill();
+        for (let nextIndex = index + 1; nextIndex < particles.length; nextIndex += 1) {
+          const nextParticle = particles[nextIndex];
+          const distance = Math.hypot(particle.x - nextParticle.x, particle.y - nextParticle.y);
+          if (distance < 105) {
+            particleContext.beginPath();
+            particleContext.strokeStyle = `rgba(124, 195, 255, ${(1 - distance / 105) * 0.11})`;
+            particleContext.moveTo(particle.x, particle.y);
+            particleContext.lineTo(nextParticle.x, nextParticle.y);
+            particleContext.stroke();
+          }
+        }
+      });
+      if (!prefersReducedMotion) requestAnimationFrame(animateParticles);
+    };
+
+    resizeParticles();
+    createParticles();
+    if (!prefersReducedMotion) animateParticles();
+    window.addEventListener('resize', () => {
+      resizeParticles();
+      createParticles();
+    });
+
+    document.addEventListener('pointermove', (event) => {
+      cursorGlow.style.left = `${event.clientX}px`;
+      cursorGlow.style.top = `${event.clientY}px`;
+      document.body.classList.add('cursor-active');
+    });
+
+    document.addEventListener('pointerleave', () => document.body.classList.remove('cursor-active'));
+    document.addEventListener('click', (event) => {
+      if (prefersReducedMotion) return;
+      const ripple = document.createElement('span');
+      ripple.className = 'click-ripple';
+      ripple.style.left = `${event.clientX}px`;
+      ripple.style.top = `${event.clientY}px`;
+      document.body.append(ripple);
+      ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+    });
+
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.body.classList.add('loaded');
+        introScreen.classList.add('hidden');
+      }, 2200);
+    });
+
+    applyLanguage();
+
+    const showPage = (page) => {
+      const showChat = page === 'chat';
+      const showVoice = page === 'voice';
+      const showAccount = page === 'account';
+      const showMusic = page === 'music';
+      const showReviews = page === 'reviews';
+      const showExtras = page === 'extras';
+      homePage.hidden = showChat || showVoice || showAccount || showMusic || showReviews || showExtras;
+      chatPage.hidden = !showChat;
+      voicePage.hidden = !showVoice;
+      accountPage.hidden = !showAccount;
+      musicPage.hidden = !showMusic;
+      reviewsPage.hidden = !showReviews;
+      extrasPage.hidden = !showExtras;
+      if (showChat) input.focus();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const navigateTo = (button) => {
+      showPage(button.dataset.page || 'home');
+      const targetId = button.dataset.target;
+      if (targetId) {
+        requestAnimationFrame(() => document.querySelector(`#${targetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      }
+    };
+
+    const addMessage = (text, className) => {
+      const message = document.createElement('div');
+      message.className = `message ${className}`;
+      message.textContent = text;
+      messages.append(message);
+      messages.scrollTop = messages.scrollHeight;
+      saveChatHistory();
+    };
+
+    const saveChatHistory = () => {
+      const history = Array.from(messages.querySelectorAll('.message')).map((message) => ({
+        text: message.textContent,
+        className: message.classList.contains('user-message') ? 'user-message' : 'bot-message'
+      }));
+      localStorage.setItem(chatHistoryKey, JSON.stringify(history));
+    };
+
+    const restoreChatHistory = () => {
+      try {
+        const history = JSON.parse(localStorage.getItem(chatHistoryKey) || 'null');
+        if (!Array.isArray(history) || history.length === 0) return;
+        messages.replaceChildren();
+        history.forEach(({ text, className }) => {
+          if (typeof text === 'string') {
+            const message = document.createElement('div');
+            message.className = `message ${className === 'user-message' ? 'user-message' : 'bot-message'}`;
+            message.textContent = text;
+            messages.append(message);
+          }
+        });
+        messages.scrollTop = messages.scrollHeight;
+      } catch (error) {
+        localStorage.removeItem(chatHistoryKey);
+        console.warn('Historique local réinitialisé.', error);
+      }
+    };
+
+    restoreChatHistory();
+
+    const getConversationText = () => Array.from(messages.querySelectorAll('.message'))
+      .map((message) => `${message.classList.contains('user-message') ? 'Vous' : 'Luwansangu IA'} : ${message.textContent}`)
+      .join('\n\n');
+
+    const copyText = async (text) => {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const helper = document.createElement('textarea');
+      helper.value = text;
+      helper.style.position = 'fixed';
+      helper.style.opacity = '0';
+      document.body.append(helper);
+      helper.select();
+      document.execCommand('copy');
+      helper.remove();
+    };
+
+    const updateCharCount = () => { charCount.textContent = `${input.value.length} / 2000`; };
+
+    input.addEventListener('input', updateCharCount);
+    document.querySelectorAll('[data-prompt]').forEach((button) => {
+      button.addEventListener('click', () => {
+        input.value = button.dataset.prompt;
+        updateCharCount();
+        input.focus();
+      });
+    });
+
+    chatSearch.addEventListener('input', () => {
+      const query = normalizeText(chatSearch.value);
+      messages.querySelectorAll('.message').forEach((message) => {
+        message.hidden = query !== '' && !normalizeText(message.textContent).includes(query);
+      });
+    });
+
+    const localKnowledge = [
+      ['bonjour|salut|coucou', 'Bonjour ! Je suis Luwansangu IA. Comment puis-je vous aider ?'],
+      ['qui es tu|tu es qui|ton nom', 'Je suis Luwansangu IA, un assistant local pour discuter, apprendre et créer.'],
+      ['que peux tu faire|tes capacites|tu sais faire quoi', 'Je peux répondre à des questions, expliquer des notions, traduire, résumer et aider à écrire.'],
+      ['merci|je te remercie', 'Avec plaisir !'],
+      ['au revoir|a bientot|bonne nuit', 'Au revoir ! Passez une excellente journée.'],
+      ['comment ca va|tu vas bien', 'Je fonctionne très bien et je suis prêt à vous aider.'],
+      ['quel age|ton age', 'Je n’ai pas d’âge : je suis un logiciel.'],
+      ['qui t a cree|qui a cree', 'Je suis le projet Luwansangu IA, exécuté localement avec Ollama.'],
+      ['es tu humain|tu es une personne', 'Non, je suis une intelligence artificielle.'],
+      ['es tu gratuit|c est gratuit', 'Cette interface est gratuite ; Ollama fonctionne localement sur votre ordinateur.'],
+      ['quest ce que ia|intelligence artificielle', 'Une IA est un système capable d’analyser des informations et de produire des réponses ou des actions.'],
+      ['quest ce que ollama|ollama c est quoi', 'Ollama permet d’exécuter des modèles d’intelligence artificielle localement.'],
+      ['quest ce qu un algorithme|algorithme', 'Un algorithme est une suite d’étapes permettant de résoudre un problème.'],
+      ['quest ce que html|html', 'HTML est le langage qui structure le contenu d’une page web.'],
+      ['quest ce que css|css', 'CSS sert à mettre en forme et à animer les pages web.'],
+      ['quest ce que javascript|javascript', 'JavaScript ajoute de la logique et de l’interactivité aux pages web.'],
+      ['quest ce que api|une api', 'Une API est une interface qui permet à des logiciels de communiquer.'],
+      ['quest ce que internet|internet', 'Internet est un réseau mondial reliant des ordinateurs et des services.'],
+      ['quest ce que wifi|wifi', 'Le Wi-Fi est une technologie de connexion réseau sans fil.'],
+      ['quest ce qu un navigateur|navigateur web', 'Un navigateur affiche des sites web, comme Chrome, Edge ou Firefox.'],
+      ['comment apprendre|apprendre efficacement', 'Fixez un objectif, pratiquez régulièrement et vérifiez vos erreurs.'],
+      ['comment memoriser|retenir une lecon', 'Utilisez le rappel actif, la répétition espacée et des exemples personnels.'],
+      ['comment rester concentre|concentration', 'Éliminez les distractions, travaillez par périodes courtes et faites des pauses.'],
+      ['comment organiser mon temps|gestion du temps', 'Listez les priorités, estimez la durée et réservez du temps pour les imprévus.'],
+      ['comment prendre une decision|prendre une decision', 'Définissez les critères, comparez les options et choisissez une action réversible si possible.'],
+      ['comment resoudre un probleme|résoudre un probleme', 'Décrivez le problème, cherchez sa cause, testez une solution et mesurez le résultat.'],
+      ['comment faire un cv|curriculum vitae', 'Présentez vos compétences, expériences et résultats de façon claire sur une page si possible.'],
+      ['comment ecrire une lettre|lettre de motivation', 'Adaptez-la au destinataire, expliquez votre intérêt et donnez des exemples concrets.'],
+      ['comment faire un resume|resumer un texte', 'Gardez l’idée principale, les points essentiels et supprimez les répétitions.'],
+      ['comment apprendre une langue|langue etrangere', 'Écoutez, répétez à voix haute et utilisez chaque jour du vocabulaire en contexte.'],
+      ['c est quoi une variable|variable en programmation', 'Une variable est un nom associé à une valeur qui peut être utilisée par un programme.'],
+      ['c est quoi une fonction|fonction programmation', 'Une fonction regroupe des instructions réutilisables qui peuvent recevoir des paramètres.'],
+      ['c est quoi une boucle|boucle programmation', 'Une boucle répète des instructions tant qu’une condition est respectée.'],
+      ['c est quoi une base de donnees|base de donnees', 'Une base de données organise des informations pour les enregistrer et les retrouver.'],
+      ['c est quoi github|github', 'GitHub est une plateforme de collaboration et d’hébergement de projets avec Git.'],
+      ['c est quoi git|git', 'Git est un outil de suivi des versions du code.'],
+      ['difference frontend backend|frontend backend', 'Le frontend est visible dans le navigateur ; le backend fonctionne côté serveur.'],
+      ['comment securiser un mot de passe|mot de passe securise', 'Utilisez un mot de passe long et unique avec un gestionnaire et la double authentification.'],
+      ['quest ce que phishing|hameconnage', 'Le phishing tente de vous tromper pour voler des informations ; vérifiez toujours l’expéditeur et le lien.'],
+      ['comment proteger mon ordinateur|securite ordinateur', 'Mettez à jour le système, utilisez des mots de passe uniques et évitez les fichiers inconnus.'],
+      ['donne moi une idee|idee de projet', 'Créez un petit tableau de tâches local avec filtres, recherche et sauvegarde.'],
+      ['idee application|idee d application', 'Une application de suivi des habitudes avec statistiques serait un bon projet.'],
+      ['idee site web|idee de site', 'Un site portfolio interactif présentant vos projets et vos compétences est utile.'],
+      ['idee cadeau|cadeau', 'Choisissez selon les goûts, l’usage quotidien et un souvenir partagé avec la personne.'],
+      ['raconte une blague|blague', 'Pourquoi les développeurs aiment-ils le mode sombre ? Parce que la lumière attire les bugs !'],
+      ['raconte une histoire|petite histoire', 'Un petit programme devint utile le jour où quelqu’un prit le temps de bien lui expliquer son objectif.'],
+      ['donne une citation|citation', 'La simplicité est la sophistication suprême.'],
+      ['motivation|motive moi', 'Commencez par une petite action concrète : le mouvement crée souvent la motivation.'],
+      ['conseil|un conseil', 'Avancez étape par étape et vérifiez régulièrement ce qui fonctionne vraiment.'],
+      ['explique simplement|en termes simples', 'Bien sûr. Donnez-moi le sujet précis et je l’expliquerai avec des mots simples.'],
+      ['traduis bonjour en anglais|bonjour anglais', 'Bonjour se traduit par “hello” ou “good morning” selon le contexte.'],
+      ['traduis merci en anglais|merci anglais', 'Merci se traduit par “thank you”.'],
+      ['comment dire bonjour en espagnol|bonjour espagnol', 'Bonjour se dit “hola” en espagnol.'],
+      ['comment dire merci en espagnol|merci espagnol', 'Merci se dit “gracias” en espagnol.'],
+      ['traduis hello en francais|hello francais', 'Hello se traduit par “bonjour” ou “salut”.'],
+      ['synonyme de rapide|synonyme rapide', 'Des synonymes de rapide sont vif, prompt, véloce et accéléré.'],
+      ['synonyme de beau|synonyme beau', 'Des synonymes de beau sont joli, élégant, magnifique et splendide.'],
+      ['contraire de grand|antonyme grand', 'Le contraire de grand est petit.'],
+      ['pluriel de cheval|cheval pluriel', 'Le pluriel de cheval est chevaux.'],
+      ['feminin de acteur|acteur feminin', 'Le féminin courant de acteur est actrice.'],
+      ['combien font 2 plus 2|2\s*\+\s*2', '2 + 2 = 4.'],
+      ['combien font 10 fois 5|10\s*fois\s*5', '10 x 5 = 50.'],
+      ['combien font 100 divise par 4|100\s*divise', '100 / 4 = 25.'],
+      ['racine carree de 144|racine 144', 'La racine carrée de 144 est 12.'],
+      ['pourcentage de 50|50 pourcent', '50 % signifie la moitié.'],
+      ['formule aire cercle|aire cercle', 'L’aire d’un cercle est π × rayon².'],
+      ['formule vitesse|calcul vitesse', 'La vitesse se calcule avec distance / durée.'],
+      ['quest ce qu un triangle|triangle', 'Un triangle est un polygone à trois côtés et trois angles.'],
+      ['quest ce que la gravite|gravite', 'La gravité est l’attraction entre les masses, notamment celle de la Terre.'],
+      ['quest ce qu un atome|atome', 'Un atome est une unité de matière composée d’un noyau et d’électrons.'],
+      ['quest ce que l adn|adn', 'L’ADN contient les informations génétiques des êtres vivants.'],
+      ['quest ce qu une cellule|cellule biologique', 'La cellule est l’unité de base des êtres vivants.'],
+      ['pourquoi le ciel est bleu|ciel bleu', 'La lumière bleue est davantage diffusée par l’atmosphère que les autres couleurs visibles.'],
+      ['comment poussent les plantes|plantes', 'Les plantes utilisent la lumière, l’eau et le dioxyde de carbone pour produire leur énergie.'],
+      ['quest ce que le climat|climat', 'Le climat décrit les conditions météorologiques moyennes d’une région sur une longue période.'],
+      ['difference meteo climat|meteo climat', 'La météo concerne le court terme ; le climat décrit des tendances sur de longues périodes.'],
+      ['capitale de la france|capitale france', 'La capitale de la France est Paris.'],
+      ['capitale du canada|capitale canada', 'La capitale du Canada est Ottawa.'],
+      ['capitale du japon|capitale japon', 'La capitale du Japon est Tokyo.'],
+      ['plus grand ocean|grand ocean', 'Le plus grand océan est l’océan Pacifique.'],
+      ['plus haute montagne|haute montagne', 'La plus haute montagne au-dessus du niveau de la mer est l’Everest.'],
+      ['combien de continents|continents', 'On compte généralement sept continents.'],
+      ['combien de jours annee|jours annee', 'Une année compte 365 jours, ou 366 lors d’une année bissextile.'],
+      ['jour actuel|quelle date|date d aujourd hui', `La date de votre ordinateur est le ${new Date().toLocaleDateString('fr-FR')}.`],
+      ['quelle heure|heure actuelle', `L’heure de votre ordinateur est ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`],
+      ['meteo|quel temps', 'Je ne peux pas consulter la météo en direct sans service externe. Vérifiez votre application météo locale.'],
+      ['recette pates|faire des pates', 'Faites cuire les pâtes dans l’eau salée, puis ajoutez une sauce et servez chaud.'],
+      ['recette omelette|faire une omelette', 'Battez les œufs, assaisonnez, versez dans une poêle chaude et repliez quand ils sont pris.'],
+      ['petit dejeuner|petit dejeuner sain', 'Un petit déjeuner équilibré peut associer fruit, céréales complètes et source de protéines.'],
+      ['boire eau|combien eau', 'Les besoins varient ; buvez régulièrement et davantage en cas de chaleur ou d’activité.'],
+      ['faire sport|exercice', 'Commencez progressivement, échauffez-vous et choisissez une activité régulière que vous appréciez.'],
+      ['mieux dormir|sommeil', 'Gardez des horaires réguliers, limitez les écrans avant le coucher et rendez la chambre calme.'],
+      ['gerer stress|stress', 'Respirez lentement, faites une pause et parlez à une personne de confiance si nécessaire.'],
+      ['difference virus bacterie|virus bacterie', 'Un virus se reproduit dans une cellule hôte ; une bactérie est un organisme vivant unicellulaire.'],
+      ['premiers secours|blessure', 'En urgence, sécurisez la zone et contactez les services d’urgence de votre pays.'],
+      ['comment economiser|economiser argent', 'Suivez vos dépenses, fixez un budget et automatisez une petite épargne régulière.'],
+      ['faire budget|budget', 'Notez revenus et dépenses, séparez besoins et envies, puis fixez des limites réalistes.'],
+      ['creer entreprise|entreprise', 'Validez le besoin, définissez une offre claire et renseignez-vous sur les obligations locales.'],
+      ['entretien embauche|entretien emploi', 'Préparez des exemples concrets, renseignez-vous sur l’entreprise et répondez clairement.'],
+      ['negocier salaire|salaire', 'Appuyez-vous sur le marché, vos résultats et une fourchette argumentée.'],
+      ['ecrire email professionnel|email professionnel', 'Utilisez un objet précis, une demande claire et une formule de politesse.'],
+      ['corrige cette phrase|correction phrase', 'Envoyez-moi la phrase à corriger et je proposerai une version améliorée.'],
+      ['ecris un poeme|poeme', 'Avec plaisir. Donnez-moi un thème, une longueur et un style pour le personnaliser.'],
+      ['ecris une histoire|histoire', 'Donnez-moi un personnage, un lieu et un problème : je construirai une histoire autour.'],
+      ['resumer|resume ce texte', 'Collez le texte à résumer et indiquez la longueur souhaitée.'],
+      ['traduire|traduction', 'Envoyez le texte et précisez la langue de destination.'],
+      ['question difficile|question complexe', 'Posez-la précisément ; je peux décomposer le raisonnement étape par étape.'],
+      ['je ne comprends pas|pas compris', 'Pas de problème. Dites-moi quelle partie vous semble difficile et je la reformulerai.'],
+      ['aide moi|peux tu m aider', 'Oui. Décrivez votre objectif et ce que vous avez déjà essayé.'],
+      ['reponds en anglais|parle anglais', 'Sure! I can answer in English. Ask me your question.'],
+      ['reponds en francais|parle francais', 'Bien sûr, je peux répondre en français.'],
+      ['est ce que tu ecoutes|microphone', 'Je n’écoute que lorsque vous utilisez volontairement le bouton du chat vocal.'],
+      ['mes donnees|confidentialite', 'Cette version conserve localement certaines informations du compte dans votre navigateur.'],
+      ['mot de passe|password', 'Ne partagez jamais votre mot de passe et utilisez un mot de passe unique.'],
+      ['comment utiliser le site|utiliser le site', 'Choisissez Assistant pour écrire, Chat vocal pour parler ou Compte pour votre session locale.'],
+      ['pourquoi ollama ne marche pas|ollama ne marche', 'Lancez Ollama, vérifiez le modèle llama3.2 et autorisez la connexion locale.'],
+      ['merci pour ton aide|super merci', 'Je vous en prie !'],
+      ['tu peux repondre a 100 questions|100 questions', 'Oui. Je possède une base locale de 100 questions courantes et Ollama peut traiter des questions beaucoup plus variées.']
+    ];
+
+    const normalizeText = (text) => text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+    const getLocalAnswer = (text) => {
+      const normalizedText = normalizeText(text);
+      const match = localKnowledge.find(([patterns]) => patterns.split('|').some((pattern) => new RegExp(pattern, 'i').test(normalizedText)));
+      return match ? match[1] : null;
+    };
+
+    const askOllama = async (text) => {
+      conversation.push({ role: 'user', content: text });
+      try {
+        const response = await fetch(ollamaUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: ollamaModel,
+            messages: conversation,
+            stream: false
+          })
+        });
+
+        if (!response.ok) throw new Error(`Ollama a répondu avec le statut ${response.status}`);
+        const data = await response.json();
+        const reply = data.message?.content?.trim();
+        if (!reply) throw new Error('Réponse vide du modèle');
+        conversation.push({ role: 'assistant', content: reply });
+        return reply;
+      } catch (error) {
+        const localReply = getLocalAnswer(text);
+        if (!localReply) throw error;
+        conversation.push({ role: 'assistant', content: localReply });
+        return `${localReply}\n\nRéponse locale utilisée : Ollama n’est pas connecté.`;
+      }
+    };
+
+    const speak = (text) => {
+      if (!voiceEnabled || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = currentLang === 'fr' ? 'fr-FR' : 'en-US';
+      utterance.rate = 0.95;
+      voiceOrbs.forEach((orb) => {
+        orb.classList.add('is-speaking');
+        orb.setAttribute('aria-label', translate('speakerActive'));
+      });
+      utterance.onend = () => {
+        voiceOrbs.forEach((orb) => {
+          orb.classList.remove('is-speaking');
+          orb.setAttribute('aria-label', translate('speakerInactive'));
+        });
+      };
+      utterance.onerror = utterance.onend;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      addMessage(text, 'user-message');
+      input.value = '';
+      input.disabled = true;
+      sendButton.disabled = true;
+      status.textContent = 'IA locale : réflexion en cours...';
+      status.classList.add('is-thinking');
+      try {
+        const response = await askOllama(text);
+        addMessage(response, 'bot-message');
+        speak(response);
+        status.textContent = `IA locale : connectée à ${ollamaModel}`;
+      } catch (error) {
+        conversation.pop();
+        addMessage('Je ne peux pas me connecter à Ollama. Lance Ollama et vérifie que le modèle « llama3.2 » est installé.', 'bot-message');
+        status.textContent = 'IA locale : Ollama introuvable';
+        console.error(error);
+      } finally {
+        status.classList.remove('is-thinking');
+        input.disabled = false;
+        sendButton.disabled = false;
+        input.focus();
+      }
+    });
+
+    document.querySelector('#focus-chat').addEventListener('click', () => showPage('chat'));
+    document.querySelector('#focus-voice').addEventListener('click', () => showPage('voice'));
+    document.querySelectorAll('[data-page]').forEach((button) => {
+      button.addEventListener('click', () => navigateTo(button));
+    });
+    document.querySelector('#clear-chat').addEventListener('click', () => {
+      const clearedMessage = currentLang === 'fr'
+        ? 'Conversation effacée. Bonjour, comment puis-je t’aider ?'
+        : 'Conversation cleared. Hello, how can I help you?';
+      messages.innerHTML = `<div class="message bot-message">${clearedMessage}</div>`;
+      saveChatHistory();
+      conversation = [];
+      status.textContent = 'IA locale : connexion à Ollama en attente';
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      voiceOrbs.forEach((orb) => {
+        orb.classList.remove('is-speaking');
+        orb.setAttribute('aria-label', translate('speakerInactive'));
+      });
+      input.focus();
+    });
+
+    copyChatButton.addEventListener('click', async () => {
+      try {
+        await copyText(getConversationText());
+        copyChatButton.textContent = currentLang === 'fr' ? 'Copié !' : 'Copied!';
+        setTimeout(() => applyLanguage(), 1400);
+      } catch (error) {
+        console.error('Copie impossible.', error);
+      }
+    });
+
+    exportChatButton.addEventListener('click', () => {
+      const file = new Blob([getConversationText()], { type: 'text/plain;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(file);
+      link.download = `luwansangu-conversation-${new Date().toISOString().slice(0, 10)}.txt`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    copyLastButton.addEventListener('click', async () => {
+      const replies = messages.querySelectorAll('.bot-message');
+      const lastReply = replies[replies.length - 1]?.textContent;
+      if (lastReply) await copyText(lastReply);
+    });
+
+    exportJsonButton.addEventListener('click', () => {
+      const data = Array.from(messages.querySelectorAll('.message')).map((message) => ({
+        role: message.classList.contains('user-message') ? 'user' : 'assistant',
+        content: message.textContent
+      }));
+      const file = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(file);
+      link.download = `luwansangu-conversation-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    clearHistoryButton.addEventListener('click', () => {
+      localStorage.removeItem(chatHistoryKey);
+      messages.replaceChildren();
+      addMessage(translate('botWelcome'), 'bot-message');
+    });
+
+    checkOllamaButton.addEventListener('click', async () => {
+      checkOllamaButton.disabled = true;
+      status.textContent = 'Ollama : test en cours...';
+      try {
+        const response = await fetch('http://localhost:11434/api/tags');
+        if (!response.ok) throw new Error(`Statut ${response.status}`);
+        status.textContent = 'Ollama : connexion disponible';
+      } catch (error) {
+        status.textContent = 'Ollama : connexion indisponible';
+        console.error(error);
+      } finally {
+        checkOllamaButton.disabled = false;
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        showPage('chat');
+        input.focus();
+      }
+      if (event.key.toLowerCase() === 'm') {
+        event.preventDefault();
+        if (musicToggle) {
+          musicToggle.click();
+        }
+      }
+      if (event.key === 'Escape' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    });
+
+    voiceToggle.addEventListener('click', () => {
+      voiceEnabled = !voiceEnabled;
+      voiceToggle.textContent = voiceEnabled ? translate('btnVoiceOn') : translate('btnVoiceOff');
+      voiceToggle.setAttribute('aria-pressed', String(voiceEnabled));
+      if (!voiceEnabled && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        voiceOrbs.forEach((orb) => {
+          orb.classList.remove('is-speaking');
+          orb.setAttribute('aria-label', translate('speakerInactive'));
+        });
+      }
+    });
+
+    const buildMusicModes = () => {
+      const container = document.createElement('div');
+      container.className = 'music-mode-list';
+      ['calme', 'cinematic', 'energisant'].forEach((mode) => {
+        const profile = musicProfiles[mode];
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `music-mode${musicMode === mode ? ' active' : ''}`;
+        button.textContent = profile.label;
+        button.setAttribute('aria-label', `Mode musique ${profile.label}`);
+        button.addEventListener('click', async () => {
+          musicMode = mode;
+          localStorage.setItem('luwansangu-music-mode', musicMode);
+          if (musicEnabled) {
+            applyMusicProfile();
+          }
+          setMusicButtonState();
+        });
+        container.append(button);
+      });
+      musicToggle.parentElement.parentElement.append(container);
+    };
+
+    musicMode = localStorage.getItem('luwansangu-music-mode') || 'calme';
+    if (!musicProfiles[musicMode]) musicMode = 'calme';
+    buildMusicModes();
+    setMusicButtonState();
+
+    document.querySelectorAll('.music-choice').forEach((choice) => {
+      choice.addEventListener('click', async () => {
+        musicMode = choice.dataset.music;
+        localStorage.setItem('luwansangu-music-mode', musicMode);
+        if (musicEnabled) {
+          applyMusicProfile();
+        } else {
+          await startAmbientMusic();
+        }
+        setMusicButtonState();
+      });
+    });
+
+    musicVolumeInput.addEventListener('input', () => {
+      if (musicEnabled) applyMusicProfile();
+    });
+
+    musicToggle.addEventListener('click', async () => {
+      if (musicEnabled) {
+        stopAmbientMusic();
+        return;
+      }
+      await startAmbientMusic();
+    });
+
+    const noteArea = document.querySelector('#quick-note');
+    const saveNoteButton = document.querySelector('#save-note');
+    const copyNoteButton = document.querySelector('#copy-note');
+    const clearNoteButton = document.querySelector('#clear-note');
+    const timerMinutesInput = document.querySelector('#timer-minutes');
+    const timerDisplay = document.querySelector('#timer-display');
+    const startTimerButton = document.querySelector('#start-timer');
+    const pauseTimerButton = document.querySelector('#pause-timer');
+    const quoteBox = document.querySelector('#quote-box');
+    const newQuoteButton = document.querySelector('#new-quote');
+    const noteKey = 'luwansangu-note';
+    const quoteList = [
+      'La simplicité est la sophistication suprême.',
+      'Le progrès se construit une petite étape à la fois.',
+      'Un bon outil rend la pensée plus claire.',
+      'La meilleure idée commence souvent par une question simple.',
+      'On apprend en pratiquant, pas seulement en regardant.',
+      'Le calme est une superpuissance pour créer.',
+      'Chaque grand projet naît d’une petite action.'
+    ];
+    let timerInterval = null;
+    let remainingSeconds = 25 * 60;
+
+    const renderNote = () => {
+      noteArea.value = localStorage.getItem(noteKey) || '';
+    };
+
+    saveNoteButton.addEventListener('click', () => {
+      localStorage.setItem(noteKey, noteArea.value);
+    });
+
+    copyNoteButton.addEventListener('click', async () => {
+      try {
+        await copyText(noteArea.value || '');
+      } catch (error) {
+        console.error('Copie du bloc-notes impossible.', error);
+      }
+    });
+
+    clearNoteButton.addEventListener('click', () => {
+      noteArea.value = '';
+      localStorage.removeItem(noteKey);
+    });
+
+    const formatTime = (seconds) => {
+      const total = Math.max(0, seconds);
+      const minutes = String(Math.floor(total / 60)).padStart(2, '0');
+      const secs = String(total % 60).padStart(2, '0');
+      return `${minutes}:${secs}`;
+    };
+
+    const updateTimerDisplay = () => {
+      timerDisplay.textContent = formatTime(remainingSeconds);
+    };
+
+    const stopTimer = () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    };
+
+    startTimerButton.addEventListener('click', () => {
+      const minutes = Number(timerMinutesInput.value) || 25;
+      remainingSeconds = Math.max(1, minutes) * 60;
+      if (timerInterval) stopTimer();
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        remainingSeconds -= 1;
+        updateTimerDisplay();
+        if (remainingSeconds <= 0) {
+          stopTimer();
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance('Le minuteur est terminé.');
+            utterance.lang = currentLang === 'fr' ? 'fr-FR' : 'en-US';
+            window.speechSynthesis.speak(utterance);
+          }
+        }
+      }, 1000);
+    });
+
+    pauseTimerButton.addEventListener('click', () => {
+      stopTimer();
+    });
+
+    timerMinutesInput.addEventListener('change', () => {
+      stopTimer();
+      const minutes = Number(timerMinutesInput.value) || 25;
+      remainingSeconds = Math.max(1, minutes) * 60;
+      updateTimerDisplay();
+    });
+
+    const setRandomQuote = () => {
+      const randomQuote = quoteList[Math.floor(Math.random() * quoteList.length)];
+      quoteBox.textContent = `"${randomQuote}"`;
+    };
+
+    newQuoteButton.addEventListener('click', setRandomQuote);
+    setRandomQuote();
+    updateTimerDisplay();
+    renderNote();
+
+    const renderAccount = () => {
+      let account = null;
+      try {
+        account = JSON.parse(localStorage.getItem('luwansangu-account') || 'null');
+      } catch (error) {
+        localStorage.removeItem('luwansangu-account');
+        console.warn('Session locale réinitialisée.', error);
+      }
+      accountSession.hidden = !account;
+      accountForm.hidden = Boolean(account);
+      if (account) {
+        accountWelcome.textContent = `Bienvenue, ${account.name} !`;
+        accountDetail.textContent = `Connecté avec ${account.email}`;
+      }
+    };
+
+    accountForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const account = { name: accountName.value.trim(), email: accountEmail.value.trim() };
+      localStorage.setItem('luwansangu-account', JSON.stringify(account));
+      accountPassword.value = '';
+      accountStatus.textContent = 'Compte connecté sur cet appareil.';
+      renderAccount();
+    });
+
+    document.querySelector('#account-logout').addEventListener('click', () => {
+      localStorage.removeItem('luwansangu-account');
+      accountStatus.textContent = 'Session locale terminée.';
+      renderAccount();
+    });
+
+    sendAccount.addEventListener('click', () => {
+      let account = null;
+      try {
+        account = JSON.parse(localStorage.getItem('luwansangu-account') || 'null');
+      } catch (error) {
+        accountStatus.textContent = 'Impossible de lire la session locale.';
+        return;
+      }
+      if (!account) return;
+      const subject = encodeURIComponent('Informations de mon compte Luwansangu');
+      const body = encodeURIComponent(`Nom : ${account.name}\nE-mail : ${account.email}\n\nLe mot de passe n’est jamais envoyé.`);
+      accountStatus.textContent = 'E-mail prêt à être envoyé vers joshualwsg6@gmail.com';
+      window.location.href = `mailto:joshualwsg6@gmail.com?subject=${subject}&body=${body}`;
+    });
+
+    renderAccount();
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+
+    if (recognition) {
+      recognition.lang = currentLang === 'fr' ? 'fr-FR' : 'en-US';
+      recognition.interimResults = false;
+      recognition.onstart = () => {
+        micButton.classList.add('is-listening');
+        micButton.textContent = '⏹';
+        voiceStatus.textContent = 'Je vous écoute...';
+      };
+      recognition.onresult = async (event) => {
+        const text = event.results[0][0].transcript.trim();
+        voiceTranscript.textContent = text;
+        voiceStatus.textContent = 'IA locale : réflexion en cours...';
+        try {
+          const response = await askOllama(text);
+          voiceTranscript.textContent = response;
+          speak(response);
+          voiceStatus.textContent = `IA locale : connectée à ${ollamaModel}`;
+        } catch (error) {
+          conversation.pop();
+          voiceStatus.textContent = 'Ollama introuvable : lancez le modèle local';
+          console.error(error);
+        }
+      };
+      recognition.onerror = () => { voiceStatus.textContent = 'Microphone indisponible ou permission refusée'; };
+      recognition.onend = () => {
+        micButton.classList.remove('is-listening');
+        micButton.textContent = '🎙';
+      };
+      micButton.addEventListener('click', () => {
+        if (micButton.classList.contains('is-listening')) recognition.stop();
+        else {
+          recognition.lang = currentLang === 'fr' ? 'fr-FR' : 'en-US';
+          recognition.start();
+        }
+      });
+    } else {
+      micButton.disabled = true;
+      voiceStatus.textContent = 'La reconnaissance vocale n’est pas disponible dans ce navigateur';
+    }
+  </script>
+</body>
+
+</html>
